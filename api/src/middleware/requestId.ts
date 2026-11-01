@@ -34,12 +34,17 @@ export function accessLogMiddleware(
     const duration = Date.now() - start;
     // Strip sensitive query params from logged path
     const path = req.path;
+    const tenantId =
+      (req as Request & { tenantId?: string }).tenantId ??
+      (res.locals?.tenantId as string | undefined);
+
     logger.info("request", {
       method: req.method,
       path,
       status: res.statusCode,
       durationMs: duration,
       requestId,
+      ...(tenantId ? { tenantId } : {}),
     });
   });
 

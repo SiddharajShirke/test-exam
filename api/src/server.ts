@@ -3,9 +3,15 @@ import { config } from "./config/index.js";
 import { logger } from "./lib/logger.js";
 import { createApp } from "./app.js";
 import { createProviders } from "./providers/index.js";
+import { runMigrations } from "./migrations/runner.js";
 
 async function main() {
   logger.info("Starting api server", { nodeEnv: config.NODE_ENV, port: config.PORT });
+
+  if (config.REPO_BACKEND === "sql") {
+    logger.info("Running database migrations before listen...");
+    await runMigrations();
+  }
 
   const providers = createProviders(config);
   const app = createApp({ providers });

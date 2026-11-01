@@ -51,8 +51,13 @@ module.exports = [
     },
   },
   {
-    // Allow repositories and migrations to import pool
-    files: ["src/repositories/**/*.ts", "src/migrations/**/*.ts"],
+    // Allow repositories, migrations, db modules, and pool unit test to import pool
+    files: [
+      "src/repositories/**/*.ts",
+      "src/migrations/**/*.ts",
+      "src/db/**/*.ts",
+      "test/unit/pool.test.ts",
+    ],
     rules: {
       "no-restricted-imports": "off",
     },
