@@ -13,7 +13,7 @@
 | Phase | Description | Status | Evidence / Notes |
 |---|---|---|---|
 | **Phase 0** | **Foundation** | **COMPLETED & VERIFIED** | [`docs/phase-reports/00-foundation.md`](phase-reports/00-foundation.md) — 53 tests passing (unit & contract), ESLint clean, typecheck clean, fakes implemented. |
-| **Phase 1** | **Azure Provisioning & Guide** | **STAGE 1 COMPLETED** | [`docs/phase-reports/01-azure-provisioning.md`](phase-reports/01-azure-provisioning.md) — 75 tests passing, discovery scripts (read-only), provisioning scripts with sign-off gate, probe tool, `UNVERIFIED_AZURE_LEDGER.md`, GitHub Actions workflows, dry-run verified. Office execution pending sign-off. |
+| **Phase 1** | **Azure Provisioning & Guide** | **STAGE 1 COMPLETED** | [`docs/phase-reports/01-azure-provisioning.md`](phase-reports/01-azure-provisioning.md) & [`docs/phase-reports/01-test-report.md`](phase-reports/01-test-report.md) — 75 tests passing, discovery scripts (read-only), provisioning scripts with sign-off gate, probe tool, `UNVERIFIED_AZURE_LEDGER.md`, GitHub Actions workflows, dry-run verified. Office execution pending sign-off. |
 | **Phase 2** | **Database & API Skeleton** | Pending | Schema, migrations, repositories, tenant isolation. |
 | **Phase 3** | **Container & First Pipeline** | Pending | Dockerfile, GitHub Actions deploy workflow. |
 | **Phase 4** | **Auth, Tenants, Users** | Pending | Endpoints 1 to 7. |
