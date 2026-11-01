@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD:-Dev!Pass123}"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/opt/mssql-tools18/bin/sqlcmd",
+          "-C",
+          "-S",
+          "localhost",
+          "-U",
+          "sa",
+          "-P",
+          "${SA_PASSWORD:-Dev!Pass123}",
+          "-Q",
+          "SELECT 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    volumes:
+      - mssql_data:/var/opt/mssql
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0"
+    volumes:
+      - azurite_data:/data
+
+volumes:
+  mssql_data:
+  azurite_data:
+
