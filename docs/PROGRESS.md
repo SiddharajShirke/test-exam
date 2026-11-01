@@ -37,3 +37,4 @@
 - Integrated organizational constraints and master prompts into `docs/prompts/` and `AGENTS.md`.
 - Created `docs/ARCHITECTURAL_EVALUATION_AND_PROVISIONING_PLAN.md` and updated `docs/decisions.md`.
 - Published branches `main` and `phase/00-foundation` to GitHub (`origin`).
+
