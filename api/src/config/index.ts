@@ -1,18 +1,23 @@
 import { z } from "zod";
 
 const modeEnum = z.enum(["fake", "azure"]);
-const filesModeEnum = z.enum(["azurite", "azure"]);
+const filesModeEnum = z.enum(["memory", "azurite", "azure"]);
+const repoBackendEnum = z.enum(["memory", "sql"]);
+const foundryStyleEnum = z.enum(["v1", "azure-deployments"]);
 
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(8080),
 
+  REPO_BACKEND: repoBackendEnum.default("memory"),
+  DB_SCHEMA: z.string().default("assess"),
   DATABASE_URL: z.string().min(1),
 
   SESSION_SECRET: z.string().min(1),
   PLATFORM_KEY: z.string().min(1),
 
   AI_MODE: modeEnum.default("fake"),
+  FOUNDRY_API_STYLE: foundryStyleEnum.default("v1"),
   FOUNDRY_ENDPOINT: z.string().url().optional().or(z.literal("")),
   FOUNDRY_KEY: z.string().optional().or(z.literal("")),
   FOUNDRY_DEPLOYMENT: z.string().default("gpt-4o"),
@@ -22,7 +27,7 @@ const envSchema = z.object({
   ACS_CONNECTION_STRING: z.string().optional().or(z.literal("")),
   ACS_SENDER: z.string().optional().or(z.literal("")),
 
-  FILES_MODE: filesModeEnum.default("azurite"),
+  FILES_MODE: filesModeEnum.default("memory"),
   BLOB_CONNECTION_STRING: z.string().min(1),
   BLOB_CONTAINER: z.string().default("jd-files"),
 
@@ -66,6 +71,9 @@ function validateConfig() {
     }
     if (cfg.FILES_MODE !== "azure") {
       productionErrors.push("FILES_MODE must be 'azure' in production");
+    }
+    if (cfg.REPO_BACKEND !== "sql") {
+      productionErrors.push("REPO_BACKEND must be 'sql' in production");
     }
     if (cfg.SESSION_SECRET.length < 32) {
       productionErrors.push("SESSION_SECRET must be at least 32 characters in production");
