@@ -59,3 +59,17 @@
 - [x] Evaluate East US vs. West US latency and network topology.
 - [x] Produce resource-by-resource provisioning plan fitting within $25/month ceiling.
 - [x] Await explicit human review and sign-off before Phase 1 provisioning.
+
+---
+
+## 5. Additional decisions (2026-11-01)
+
+| # | Decision | Value |
+|---|---|---|
+| j | Database isolation | New schema `assess` in the existing database; app user owns only that schema; no access to existing tables |
+| k | AI resource | Reuse the existing resource and its GPT-4o deployment; v1 route by default (`FOUNDRY_API_STYLE=v1`); `ai_service/` is reference only |
+| l | Container apps | Create only `assess-api` in the existing environment (0.25 vCPU, 0.5 GiB, 1 replica); never touch the portal's apps |
+| m | GitHub deploy identity | Contributor on the `assess-api` app only, AcrPush on the registry; subject `repo:SiddharajShirke/test-exam:ref:refs/heads/main` |
+| n | Public repository | No real Azure names, ids, emails or secrets in the repo; plan uses placeholders |
+| o | Removed to save cost | Clean-slate rehearsal, stress test, real database restore, RG-wide lock, availability test (unless the plan approves it) |
+| p | Open question | Is the $25 ceiling for the new backend only, or the whole subscription? (answer after OC-0) |

@@ -14,6 +14,7 @@ Non-negotiable constraints (details in Prompt B):
 - **Existing project, existing repository.** Do not create a new repository; do not restructure or touch `frontend/`, `backend/`, `database/` or `ai_service/` (you may read `ai_service/`; it is reference only). Phase 0 already exists in `api/`: reconcile it, do not rebuild it.
 - **Public repository.** Never write real Azure resource names, subscription or tenant ids, hostnames, emails, keys or tokens into any file, comment, PR text or log. Use placeholders such as `<SQL_SERVER>`.
 - **Shared Azure estate and shared database.** Zero-touch until a human has written `SIGN-OFF: APPROVED by` in `docs/PROVISIONING_PLAN.md` (you never write that line). Our tables live only in schema `assess`. Reuse the existing SQL database, AI resource, logs, registry and Container Apps environment; create only `assess-api` and what the plan lists.
+- **Git workflow (Prompt B, B5.5):** one branch per phase (`phase/NN-name`) from the latest `main`, a pull request per phase, all CI and CD on GitHub Actions, merge to `main` only when the run is green. Never commit to `main` directly.
 - **Budget $25.00 per month**: keep every design and script cost-aware.
 - **Backend only.** Do not create or change any frontend (`web/`).
 - **No secrets** in the repository, logs or documents.
