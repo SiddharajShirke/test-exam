@@ -108,7 +108,7 @@ Tag every test with its tier (`@t1`, `@t2`, `@t3`) and make `npm run` scripts ac
 | 15 | A:13.1 clean-slate rehearsal | **Removed** (B3 row 30). |
 | 16 | A:G final document | Two parts: **Part 1 "Built and verified at home"** (with CI evidence links) and **Part 2 "Azure connection status"** (one row per office checkpoint, all `PENDING` until the human reports back). |
 | 17 | A:I Definition of Done | Two levels: **Home-DoD** (B8) and **Office-DoD** (= A:I, completed at the office). |
-| 18 | A:B rule 10 merge to `main` after the gate | Merge a phase branch only when its **CI run is green** (T1 and T2). |
+| 18 | A:B rule 10 merge to `main` after the gate | One branch and one pull request per phase (B5.5); merge to `main` only when its **GitHub Actions run is green** (T1 and T2). |
 | 19 | A:1.3 and A:R19 choose the region now | Region and model availability are **office inputs**. The code and scripts take them from variables. No default region in code. |
 | 20 | A:1.6 read the GA API version "from Learn" | You may read the public docs, but **`FOUNDRY_API_VERSION` has no default in code** and no hard-coded model version anywhere. Both are required configuration. Record the documentation URL and date you used in the ledger (B6.5). |
 
@@ -181,6 +181,42 @@ Also author, with the same guard and `workflow_dispatch` triggers (the office gu
 - If `gh` is installed and authenticated on the personal account: push the branch, run `gh run watch --exit-status`, on failure `gh run view --log-failed`, fix, repeat (subject to B5.2 limits).
 - If `gh` is not available: tell the human exactly which branch you pushed and ask them to paste the failing log (or the run summary) back.
 - You never need Azure credentials for any of this.
+
+### B5.5 Git and GitHub workflow: one branch per phase, everything verified by GitHub Actions
+All CI and CD run on **GitHub Actions** in the existing repository. Nothing is verified on the user's laptop beyond the T1 commands (B2). Every workflow lives in `.github/workflows/`.
+
+**Branches (mandatory, one per phase, created from the latest `main`):**
+| Phase | Branch |
+|---|---|
+| 0 | `phase/00-reconcile` |
+| 1 | `phase/01-azure-discovery-plan` |
+| 2 | `phase/02-database` |
+| 3 | `phase/03-container-pipeline` |
+| 4 | `phase/04-auth-tenants-users` |
+| 5 | `phase/05-assessments-blob` |
+| 6 | `phase/06-ai-generation` |
+| 7 | `phase/07-participants-email` |
+| 8 | `phase/08-candidate-exam` |
+| 9 | `phase/09-scoring` |
+| 10 | `phase/10-results-export` |
+| 11 | `phase/11-hardening` |
+| 12 | `phase/12-full-cicd` |
+| 13 | `phase/13-release` |
+
+If a branch with a similar name already exists on `origin` (for example `phase/00-foundation` or `phase/01-azure-provisioning`), do not delete it; create the new branch above from `main` and note the older one in `docs/PROGRESS.md`. Fixes found later go on a new branch `fix/<phase>-<topic>` and follow the same loop.
+
+**The loop for every phase (no exceptions):**
+1. `git switch main && git pull`, then create the phase branch.
+2. Build the phase in small conventional commits (`feat:`, `fix:`, `test:`, `ci:`, `docs:`). Never commit to `main` directly. Never force-push a shared branch.
+3. Run the T1 commands locally, then push the branch and open a **draft pull request** to `main` (use `gh pr create --draft`; if `gh` is unavailable, tell the human the branch name).
+4. GitHub Actions runs `fast` on every push, and `sql`, `image`, `security` on the pull request. Watch the run (B5.4), fix, push again. Stay within the cost rules of B5.2.
+5. When **all required jobs are green** and the phase's exit gate and Home-DoD items are met, write `docs/phase-reports/NN-name.md` (with the line "Overrides applied: ..."), mark the PR ready and **merge to `main`** (squash or merge commit, linear history), then delete the merged branch.
+6. A merge to `main` triggers the `deploy` job, which stays **disabled** (`vars.AZURE_DEPLOY_ENABLED != 'true'`) until the human enables it at OC-3. A skipped deploy job is the correct result before then; it is not a failure.
+7. Update `docs/PROGRESS.md` (phase `HOME-DONE`, PR link, last green run id, next action) in the same PR or a follow-up commit on `main`, then start the next phase branch from the new `main`.
+
+**Phase 3 exception:** its pipeline is proven by its own PR runs; the real deploy is the office checkpoint OC-3.
+**Branch protection** on `main` is set at the office (OC-12). Until then the rule is a discipline you keep: no direct commits to `main`, merge only on green.
+**The human only needs to:** read the PR link in `docs/PROGRESS.md`, and send "continue". Do not ask the human to run tests locally or to merge for you, unless `gh` cannot merge.
 
 ## B6. "Azure-ready, not yet verified" discipline
 
