@@ -28,6 +28,9 @@ module.exports = [
         exports: "writable",
         module: "readonly",
         require: "readonly",
+        fetch: "readonly",
+        AbortController: "readonly",
+        NodeJS: "readonly",
       },
     },
     rules: {

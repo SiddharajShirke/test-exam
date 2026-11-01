@@ -19,15 +19,18 @@
     "test:contract": "vitest run test/contract",
     "migrate": "ts-node src/migrations/runner.ts",
     "seed:tenant": "ts-node scripts/seed-tenant.ts",
-    "db:up": "docker compose up -d mssql azurite",
-    "db:down": "docker compose down",
-    "db:reset": "docker compose down -v && docker compose up -d mssql azurite"
+    "probe": "ts-node src/tools/probe.ts",
+    "test:repo:memory": "cross-env REPO_BACKEND=memory vitest run test/repo-contract",
+    "test:repo:sql": "cross-env REPO_BACKEND=sql vitest run test/repo-contract",
+    "test:api:memory": "cross-env REPO_BACKEND=memory FILES_MODE=memory AI_MODE=fake EMAIL_MODE=fake vitest run test/api",
+    "test:api:sql": "cross-env REPO_BACKEND=sql vitest run test/api",
+    "test:sql-only": "cross-env REPO_BACKEND=sql vitest run test/sql-only"
   },
   "dependencies": {
     "@azure/communication-email": "1.0.0",
     "@azure/storage-blob": "12.24.0",
+    "@node-rs/argon2": "^2.2.2",
     "applicationinsights": "3.4.0",
-    "argon2": "0.41.1",
     "cookie-parser": "1.4.7",
     "express": "4.21.1",
     "helmet": "8.0.0",
@@ -49,6 +52,7 @@
     "@types/uuid": "10.0.0",
     "@typescript-eslint/eslint-plugin": "8.14.0",
     "@typescript-eslint/parser": "8.14.0",
+    "cross-env": "^10.1.0",
     "eslint": "9.14.0",
     "supertest": "7.0.0",
     "ts-node": "10.9.2",
@@ -57,7 +61,6 @@
     "vitest": "2.1.4"
   },
   "allowScripts": {
-    "argon2@0.41.1": true,
     "esbuild@0.21.5": true,
     "protobufjs@7.6.6": true
   }

@@ -1,0 +1,172 @@
+# Phase 1 Dry-Run Provisioning Plan Output
+# Generated: 2026-11-01 17:54:56 UTC
+# Mode: DRY_RUN=1 (no writes executed, sign-off gate enforced)
+
+================================================================================
+PART 1: DEFAULT / REUSE MODES (verification of existing shared resources)
+================================================================================
+
+--- 10-core.sh ---
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 10-core.sh  MODE=reuse  DRY_RUN=1 ===
+--- Verifying Log Analytics workspace ---
+[17:54:56 READ] az monitor log-analytics workspace show -g '<RG>' -n '<LAW>' --query '{name:name,location:location,sku:sku,retentionInDays:retentionInDays}' -o json
+--- Verifying Application Insights ---
+[17:54:56 READ] az monitor app-insights component show -g '<RG>' --app '<APPI>' --query '{name:name,location:location,instrumentationKey:"[MASKED]",connectionString:"[MASKED]"}' -o json 2>/dev/null || az resource show -g '<RG>' --resource-type Microsoft.Insights/components -n '<APPI>' --query '{name:name,location:location}' -o json
+REUSE: Core infrastructure verified.
+=== 10-core.sh DONE ===
+
+--- 20-sql.sh ---
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 20-sql.sh  MODE=reuse  DRY_RUN=1 ===
+--- Verifying SQL server ---
+[17:54:57 READ] az sql server show -g '<RG_SQL>' -n '<SQL_SERVER>' --query '{name:name,location:location,fullyQualifiedDomainName:fullyQualifiedDomainName,state:state}' -o json
+--- Verifying SQL database ---
+[17:54:57 READ] az sql db show -g '<RG_SQL>' -s '<SQL_SERVER>' -n '<SQL_DATABASE>' --query '{name:name,edition:edition,status:status}' -o json
+REUSE: SQL server and database verified (read-only).
+NOTE: Schema 'assess' and app user 'assess_app' must be created
+  via scripts/db/create-app-user.sql in the Portal Query Editor (OC-1B).
+=== 20-sql.sh DONE ===
+
+--- 30-blob.sh ---
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 30-blob.sh  MODE=create  DRY_RUN=1 ===
+--- Creating storage account (Standard LRS, no public blob access) ---
+[17:54:57 DRY-RUN] az storage account create -g '<RG>' -n '<STG>' -l 'eastus' --sku Standard_LRS --kind StorageV2 --allow-blob-public-access false --min-tls-version TLS1_2 --https-only true
+--- Creating private blob container: jd-files ---
+[17:54:57 DRY-RUN] az storage container create -n 'jd-files' --account-name '<STG>' --auth-mode login --public-access off
+CREATE: Blob storage and container created.
+=== 30-blob.sh DONE ===
+
+--- 40-ai.sh ---
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 40-ai.sh  MODE=reuse  DRY_RUN=1 ===
+NOTE: This script is REUSE-only. The AI resource already exists.
+--- Verifying AI Foundry account ---
+[17:54:57 READ] az cognitiveservices account show -g '<RG>' -n '<AI_RESOURCE>' --query '{name:name,kind:kind,location:location,sku:sku.name,endpoint:properties.endpoint,state:properties.provisioningState}' -o json
+--- Listing deployments (names only, no keys) ---
+[17:54:57 READ] az cognitiveservices account deployment list -g '<RG>' -n '<AI_RESOURCE>' --query '[].{name:name,model:properties.model.name,version:properties.model.version,sku:sku.name,capacity:sku.capacity}' -o table
+--- Confirm target deployment '<AI_DEPLOYMENT_NAME>' exists ---
+[17:54:57 READ] az cognitiveservices account deployment show -g '<RG>' -n '<AI_RESOURCE>' --deployment-name '<AI_DEPLOYMENT_NAME>' --query '{name:name,model:properties.model.name,version:properties.model.version,state:properties.provisioningState}' -o json 2>/dev/null || echo 'Deployment not found — check FOUNDRY_DEPLOYMENT value'
+REUSE: AI Foundry resource verified. Record real endpoint and deployment
+  name in your local notes (never commit to the repository).
+  Update FOUNDRY_ENDPOINT and FOUNDRY_DEPLOYMENT in Container App secrets.
+=== 40-ai.sh DONE ===
+
+--- 50-email.sh ---
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 50-email.sh  MODE=create  DRY_RUN=1 ===
+--- Creating Communication Services resource ---
+[17:54:58 DRY-RUN] az communication create -g '<RG>' -n '<ACS>' -l global --data-location unitedstates
+--- Creating Email Communication Services ---
+[17:54:58 DRY-RUN] az communication email create -g '<RG>' -n '<ACS_EMAIL>' -l 'eastus'
+--- Adding Azure-managed domain (decision h) ---
+[17:54:58 DRY-RUN] az communication email domain create -g '<RG>' -n 'AzureManagedDomain' --email-service-name '<ACS_EMAIL>' -l 'eastus' --domain-management AzureManaged
+--- Linking email domain to ACS ---
+[17:54:58 DRY-RUN] az communication link-notification-hub -g '<RG>' -n '<ACS>' --connection-string "$(az communication list-key -g '<RG>' -n '<ACS>' --query primaryConnectionString -o tsv 2>/dev/null || echo '<connection-string>')" --hub-name '<ACS_EMAIL>'
+CREATE: ACS and email domain created.
+  Record the sender address: DoNotReply@<domain>.azurecomm.net
+  Add as Container App secret ACS_SENDER (never commit).
+=== 50-email.sh DONE ===
+
+--- 60-registry.sh ---
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 60-registry.sh  MODE=create  DRY_RUN=1 ===
+--- Creating Container Registry (Basic SKU, cost-optimal for $25 ceiling) ---
+[17:54:58 DRY-RUN] az acr create -g '<RG>' -n '<ACR>' -l 'eastus' --sku Basic --admin-enabled false
+CREATE: Registry created. Login server: <ACR>.azurecr.io
+=== 60-registry.sh DONE ===
+
+--- 70-assess-api.sh ---
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 70-assess-api.sh  MODE_CAE=reuse  MODE_API=create  DRY_RUN=1 ===
+SCOPE: This script only touches 'assess-api'. Portal apps are never modified.
+--- Verifying Container Apps environment ---
+[17:54:59 READ] az containerapp env show -g '<RG>' -n '<CAE>' --query '{name:name,location:location,provisioningState:properties.provisioningState}' -o json
+--- Creating user-assigned managed identity ---
+[17:54:59 DRY-RUN] az identity create -g '<RG>' -n 'assess-api-identity' -l 'eastus'
+--- Creating assess-api container app (placeholder image, port 8080) ---
+[17:54:59 DRY-RUN] az containerapp create       -g '<RG>'       -n 'assess-api'       --environment '<CAE>'       --image 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'       --target-port 8080       --ingress external       --cpu 0.25       --memory 0.5Gi       --min-replicas 1       --max-replicas 1       --user-assigned "$(az identity show -g '<RG>' -n 'assess-api-identity' --query id -o tsv 2>/dev/null || echo '<IDENTITY_ID>')"
+--- Assigning AcrPull to managed identity on the registry ---
+[17:54:59 DRY-RUN] az role assignment create       --role AcrPull       --assignee "$(az identity show -g '<RG>' -n 'assess-api-identity' --query principalId -o tsv 2>/dev/null || echo '<PRINCIPAL_ID>')"       --scope "$(az acr show -g '<RG>' -n '<ACR>' --query id -o tsv 2>/dev/null || echo '<ACR_ID>')"
+--- Assigning Contributor to managed identity on assess-api only (B3 row 29) ---
+[17:54:59 DRY-RUN] az role assignment create       --role Contributor       --assignee "$(az identity show -g '<RG>' -n 'assess-api-identity' --query principalId -o tsv 2>/dev/null || echo '<PRINCIPAL_ID>')"       --scope "$(az containerapp show -g '<RG>' -n 'assess-api' --query id -o tsv 2>/dev/null || echo '<APP_ID>')"
+--- Creating GitHub OIDC federated credential ---
+[17:54:59 DRY-RUN] az identity federated-credential create       -g '<RG>'       --identity-name 'assess-api-identity'       -n 'github-deploy'       --issuer 'https://token.actions.githubusercontent.com'       --subject 'repo:SiddharajShirke/test-exam:ref:refs/heads/main'       --audiences 'api://AzureADTokenExchange'
+
+=== RECORD THESE VALUES AS GITHUB SECRETS (never commit them) ===
+[17:54:59 READ] echo "AZURE_CLIENT_ID=$(az identity show -g '<RG>' -n 'assess-api-identity' --query clientId -o tsv 2>/dev/null || echo '<CLIENT_ID>')"
+[17:54:59 READ] echo "AZURE_TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo '<TENANT_ID>')"
+[17:54:59 READ] echo "AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv 2>/dev/null || echo '<SUBSCRIPTION_ID>')"
+Add these three as GitHub repository secrets via Settings → Secrets.
+=== 70-assess-api.sh DONE ===
+
+================================================================================
+PART 2: CREATE MODES (targeted creation of new dedicated resources only)
+================================================================================
+
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 10-core.sh  MODE=create  DRY_RUN=1 ===
+--- Creating Log Analytics workspace ---
+[17:54:59 DRY-RUN] az monitor log-analytics workspace create -g '<RG>' -n '<LAW>' -l 'eastus' --sku PerGB2018 --retention-time 30
+--- Creating Application Insights ---
+[17:54:59 DRY-RUN] az monitor app-insights component create -g '<RG>' -n '<APPI>' -l 'eastus' --application-type web --workspace "$(az monitor log-analytics workspace show -g '<RG>' -n '<LAW>' --query customerId -o tsv)"
+--- Creating budget (alerts at 50%, 80%, 100%) ---
+[17:54:59 DRY-RUN] az consumption budget create --resource-group '<RG>' --budget-name 'assess-api-budget' --amount 25 --category Cost --time-grain Monthly --notifications '{"alert50":{"enabled":true,"operator":"GreaterThanOrEqualTo","threshold":50,"contactEmails":["<BUDGET_EMAIL>"],"thresholdType":"Actual"},"alert80":{"enabled":true,"operator":"GreaterThanOrEqualTo","threshold":80,"contactEmails":["<BUDGET_EMAIL>"],"thresholdType":"Actual"},"alert100":{"enabled":true,"operator":"GreaterThanOrEqualTo","threshold":100,"contactEmails":["<BUDGET_EMAIL>"],"thresholdType":"Actual"}}'
+CREATE: Core infrastructure created.
+=== 10-core.sh DONE ===
+
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 30-blob.sh  MODE=create  DRY_RUN=1 ===
+--- Creating storage account (Standard LRS, no public blob access) ---
+[17:54:59 DRY-RUN] az storage account create -g '<RG>' -n '<STG>' -l 'eastus' --sku Standard_LRS --kind StorageV2 --allow-blob-public-access false --min-tls-version TLS1_2 --https-only true
+--- Creating private blob container: jd-files ---
+[17:55:00 DRY-RUN] az storage container create -n 'jd-files' --account-name '<STG>' --auth-mode login --public-access off
+CREATE: Blob storage and container created.
+=== 30-blob.sh DONE ===
+
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 50-email.sh  MODE=create  DRY_RUN=1 ===
+--- Creating Communication Services resource ---
+[17:55:00 DRY-RUN] az communication create -g '<RG>' -n '<ACS>' -l global --data-location unitedstates
+--- Creating Email Communication Services ---
+[17:55:00 DRY-RUN] az communication email create -g '<RG>' -n '<ACS_EMAIL>' -l 'eastus'
+--- Adding Azure-managed domain (decision h) ---
+[17:55:00 DRY-RUN] az communication email domain create -g '<RG>' -n 'AzureManagedDomain' --email-service-name '<ACS_EMAIL>' -l 'eastus' --domain-management AzureManaged
+--- Linking email domain to ACS ---
+[17:55:00 DRY-RUN] az communication link-notification-hub -g '<RG>' -n '<ACS>' --connection-string "$(az communication list-key -g '<RG>' -n '<ACS>' --query primaryConnectionString -o tsv 2>/dev/null || echo '<connection-string>')" --hub-name '<ACS_EMAIL>'
+CREATE: ACS and email domain created.
+  Record the sender address: DoNotReply@<domain>.azurecomm.net
+  Add as Container App secret ACS_SENDER (never commit).
+=== 50-email.sh DONE ===
+
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 60-registry.sh  MODE=create  DRY_RUN=1 ===
+--- Creating Container Registry (Basic SKU, cost-optimal for $25 ceiling) ---
+[17:55:00 DRY-RUN] az acr create -g '<RG>' -n '<ACR>' -l 'eastus' --sku Basic --admin-enabled false
+CREATE: Registry created. Login server: <ACR>.azurecr.io
+=== 60-registry.sh DONE ===
+
+[_run.sh] DRY_RUN=1  PLAN_FILE=C:/Users/adity/OneDrive/Desktop/WeSelect/test-exam/docs/PROVISIONING_PLAN.md
+=== 70-assess-api.sh  MODE_CAE=reuse  MODE_API=create  DRY_RUN=1 ===
+SCOPE: This script only touches 'assess-api'. Portal apps are never modified.
+--- Verifying Container Apps environment ---
+[17:55:01 READ] az containerapp env show -g '<RG>' -n '<CAE>' --query '{name:name,location:location,provisioningState:properties.provisioningState}' -o json
+--- Creating user-assigned managed identity ---
+[17:55:01 DRY-RUN] az identity create -g '<RG>' -n 'assess-api-identity' -l 'eastus'
+--- Creating assess-api container app (placeholder image, port 8080) ---
+[17:55:01 DRY-RUN] az containerapp create       -g '<RG>'       -n 'assess-api'       --environment '<CAE>'       --image 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'       --target-port 8080       --ingress external       --cpu 0.25       --memory 0.5Gi       --min-replicas 1       --max-replicas 1       --user-assigned "$(az identity show -g '<RG>' -n 'assess-api-identity' --query id -o tsv 2>/dev/null || echo '<IDENTITY_ID>')"
+--- Assigning AcrPull to managed identity on the registry ---
+[17:55:01 DRY-RUN] az role assignment create       --role AcrPull       --assignee "$(az identity show -g '<RG>' -n 'assess-api-identity' --query principalId -o tsv 2>/dev/null || echo '<PRINCIPAL_ID>')"       --scope "$(az acr show -g '<RG>' -n '<ACR>' --query id -o tsv 2>/dev/null || echo '<ACR_ID>')"
+--- Assigning Contributor to managed identity on assess-api only (B3 row 29) ---
+[17:55:01 DRY-RUN] az role assignment create       --role Contributor       --assignee "$(az identity show -g '<RG>' -n 'assess-api-identity' --query principalId -o tsv 2>/dev/null || echo '<PRINCIPAL_ID>')"       --scope "$(az containerapp show -g '<RG>' -n 'assess-api' --query id -o tsv 2>/dev/null || echo '<APP_ID>')"
+--- Creating GitHub OIDC federated credential ---
+[17:55:01 DRY-RUN] az identity federated-credential create       -g '<RG>'       --identity-name 'assess-api-identity'       -n 'github-deploy'       --issuer 'https://token.actions.githubusercontent.com'       --subject 'repo:SiddharajShirke/test-exam:ref:refs/heads/main'       --audiences 'api://AzureADTokenExchange'
+
+=== RECORD THESE VALUES AS GITHUB SECRETS (never commit them) ===
+[17:55:01 READ] echo "AZURE_CLIENT_ID=$(az identity show -g '<RG>' -n 'assess-api-identity' --query clientId -o tsv 2>/dev/null || echo '<CLIENT_ID>')"
+[17:55:01 READ] echo "AZURE_TENANT_ID=$(az account show --query tenantId -o tsv 2>/dev/null || echo '<TENANT_ID>')"
+[17:55:01 READ] echo "AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv 2>/dev/null || echo '<SUBSCRIPTION_ID>')"
+Add these three as GitHub repository secrets via Settings → Secrets.
+=== 70-assess-api.sh DONE ===
+

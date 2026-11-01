@@ -1,0 +1,59 @@
+name: Live E2E Tests (Azure)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL of the target Azure Container App (e.g. https://assess-api.<hash>.<region>.azurecontainerapps.io)'
+        required: true
+        type: string
+      upto_phase:
+        description: 'Maximum phase number to test up to (0-13)'
+        required: false
+        default: '13'
+        type: string
+      with_ai:
+        description: 'Run tests requiring real AI Foundry GPT-4o'
+        required: false
+        default: false
+        type: boolean
+      with_email:
+        description: 'Run tests requiring real Azure Communication Services email'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  live-e2e:
+    name: Run Live Azure E2E
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run E2E test runner
+        env:
+          E2E_TARGET: azure
+          E2E_BASE_URL: ${{ inputs.base_url }}
+          E2E_PLATFORM_KEY: ${{ secrets.E2E_PLATFORM_KEY }}
+          E2E_A_EMAIL: ${{ secrets.E2E_A_EMAIL }}
+          E2E_A_PASSWORD: ${{ secrets.E2E_A_PASSWORD }}
+          E2E_B_EMAIL: ${{ secrets.E2E_B_EMAIL }}
+          E2E_B_PASSWORD: ${{ secrets.E2E_B_PASSWORD }}
+          E2E_MAILBOX: ${{ secrets.E2E_MAILBOX }}
+          E2E_CANDIDATE_TOKEN: ${{ secrets.E2E_CANDIDATE_TOKEN }}
+        run: |
+          if [ ! -f "scripts/e2e/run.mjs" ]; then
+            echo "E2E runner scripts/e2e/run.mjs will be populated in subsequent phases."
+            exit 0
+          fi
+          node scripts/e2e/run.mjs --target azure \
+            --base-url "${{ inputs.base_url }}" \
+            --upto "${{ inputs.upto_phase }}" \
+            --with-ai "${{ inputs.with_ai }}" \
+            --with-email "${{ inputs.with_email }}"
