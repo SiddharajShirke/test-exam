@@ -558,7 +558,7 @@ az containerapp update -n "$API_APP" -g "$RG" --set-env-vars \
   "BLOB_CONTAINER=$BLOB_CONTAINER" \
   "APP_BASE_URL=https://$API_FQDN" \
   "API_INTERNAL_URL=https://$API_FQDN" \
-  "NODE_ENV=production" "PORT=8080" \
+  "APP_ENV=production" "PORT=8080" \
   "REPO_BACKEND=sql" "AI_MODE=azure" "EMAIL_MODE=azure" "FILES_MODE=azure" \
   "JOB_LOOP_ENABLED=true"
 ```
@@ -639,12 +639,12 @@ Because the repository is **public**, store the tenant, subscription and client 
 
 **Do (inside the running container, no firewall changes needed):**
 ```bash
-az containerapp exec -n "$API_APP" -g "$RG" --command "node dist/tools/probe.js config"
-az containerapp exec -n "$API_APP" -g "$RG" --command "node dist/tools/probe.js all"
+az containerapp exec -n "$API_APP" -g "$RG" --command "python -m app.tools.probe config"
+az containerapp exec -n "$API_APP" -g "$RG" --command "python -m app.tools.probe all"
 # email is NEVER in 'all'; send one real test mail to your own office mailbox:
-az containerapp exec -n "$API_APP" -g "$RG" --command "node dist/tools/probe.js acs --to <your office mailbox>"
+az containerapp exec -n "$API_APP" -g "$RG" --command "python -m app.tools.probe acs --to <your office mailbox>"
 ```
-If `exec` is not usable in Cloud Shell, open the portal: the Container App, **Monitoring, Console**, choose the container, and run the same `node dist/tools/probe.js ...` commands there.
+If `exec` is not usable in Cloud Shell, open the portal: the Container App, **Monitoring, Console**, choose the container, and run the same `python -m app.tools.probe ...` commands there.
 
 **Expect (exact shape):**
 ```
@@ -764,14 +764,14 @@ curl -sS -X POST "$API/api/v1/platform/tenants" -H "X-Platform-Key: $PLATFORM_KE
   -d '{"name":"E2E-B","adminName":"E2E B Admin","adminEmail":"e2e-b@example.com","password":"<strong-B>"}'
 ```
 Each returns `201` with `tenantId` and `adminUserId`. Create GitHub **secrets** `E2E_PLATFORM_KEY`, `E2E_A_EMAIL`, `E2E_A_PASSWORD`, `E2E_B_EMAIL`, `E2E_B_PASSWORD`.
-**Test:** run workflow **`live-e2e`** (Actions, Run workflow) with `base_url=https://<API_FQDN>`, `upto_phase=4`, `with_ai=false`, `with_email=false`. (No Actions? run `node scripts/e2e/run.mjs --target azure --base-url https://<API_FQDN> --upto 4` on a machine with Node 20.)
+**Test:** run workflow **`live-e2e`** (Actions, Run workflow) with `base_url=https://<API_FQDN>`, `upto_phase=4`, `with_ai=false`, `with_email=false`. (No Actions? run `python scripts/e2e/run.py --target azure --base-url https://<API_FQDN> --upto 4` in Cloud Shell, which has Python 3.)
 **Expect:** every check `PASS`: health, platform key (wrong key rejected), login both tenants, `/auth/me`, cookie `sid` has `HttpOnly; Secure; SameSite=Lax`, tenant A cannot read tenant B's user (404), logout.
 **Manual double check:**
 ```bash
 curl -i -X POST "$API/api/v1/auth/login" -H "Content-Type: application/json" \
   -d '{"email":"e2e-a@example.com","password":"<strong-A>"}'     # look at Set-Cookie
 ```
-**If it fails:** *401 on the platform call*: wrong key (re-read it from your password manager). *Cookie missing `Secure`*: the app is not trusting the proxy header; check `trust proxy` in the code and that the call is over `https`. *409 EMAIL_EXISTS*: the tenant already exists; reuse it.
+**If it fails:** *401 on the platform call*: wrong key (re-read it from your password manager). *Cookie missing `Secure`*: the app sets `Secure` unconditionally, so check that you are reading the right response (`curl -i`) and that `COOKIE_SECURE` is not `false` (production refuses that). *409 EMAIL_EXISTS*: the tenant already exists; reuse it.
 **Evidence:** workflow run link and result list.
 
 **Proceed when (go/no-go):** every `live-e2e` check up to phase 4 prints `PASS`, the `sid` cookie has `HttpOnly; Secure; SameSite=Lax`, tenant A cannot read tenant B (404), and the E2E tenant credentials are stored as GitHub secrets.
@@ -790,7 +790,7 @@ az storage blob list --container-name "$BLOB_CONTAINER" --connection-string "$BL
 ```
 During the test you should see `<tenantId>/<assessmentId>/<file>.pdf`; after the delete step the blob is gone. Also check the stored text in SQL (Query editor):
 ```sql
-SELECT TOP 3 id, LEN(job_description) AS jd_chars, jd_blob_path FROM assess.assessments ORDER BY id;
+SELECT TOP 3 id, LEN(job_description) AS jd_chars, jd_file_name FROM assess.assessments ORDER BY created_at DESC;
 ```
 **If it fails:** *500 on upload*: check logs for a Blob authentication error; the `blob-connection-string` secret may be wrong. *`FILE_UNREADABLE`*: scanned PDF with no text; use a text PDF. *File over 2 MB*: expected `400`.
 **Evidence:** blob listing and workflow result.
@@ -804,19 +804,19 @@ SELECT TOP 3 id, LEN(job_description) AS jd_chars, jd_blob_path FROM assess.asse
 ## OC-6: Real GPT-4o generation (Phase 6)
 **Needs:** OC-5, OC-1D, `PROBE foundry PASS` in OC-1H (`FOUNDRY_API_STYLE=v1`).
 **Test:** `live-e2e` with `upto_phase=6` and `with_ai=true`. (Costs a few cents of tokens.)
-**Expect:** the job goes `queued, running, done`, `questionCount >= 1`, questions have valid shapes; regenerate one question keeps its id and position; approve works only when **every section holds exactly its configured number of questions** (otherwise `409 SECTION_INCOMPLETE` with expected and actual counts; no questions at all gives `409 NO_QUESTIONS`; fix by regenerating, adding custom questions or deleting extras); editing after approval returns `409`.
+**Expect:** `POST .../generate` returns `202` with a `jobId`; polling `GET /api/v1/jobs/<jobId>` goes `queued`, `running`, `done` within about a minute with `result.questionsCreated >= 1`; questions have valid shapes (4 options, `correctAnswer` A-D, explanation; descriptive ones have a rubric); regenerate one question keeps its id and position; approve works only when **every section holds exactly its configured number of questions** (otherwise `409 SECTION_INCOMPLETE` with expected and actual counts; no questions at all gives `409 NO_QUESTIONS`; fix by regenerating, adding custom questions or deleting extras); editing after approval returns `409`.
 **Verify in Azure:**
 ```sql
 SELECT TOP 5 type, status, attempts, tokens_used, error FROM assess.jobs ORDER BY created_at DESC;   -- tokens_used > 0
 ```
 ```kusto
 dependencies | where target has "openai" | order by timestamp desc | take 5
-customEvents | where name == "job.completed" | order by timestamp desc | take 5
+ContainerAppConsoleLogs_CL | where Log_s has "job_done" or Log_s has "job_retry" or Log_s has "job_failed" | order by TimeGenerated desc | take 10   // ledger AZ-030: ids, types, durations, tokens - never prompts
 ```
-**If it fails:** *job `failed` with "did not return valid questions"*: open the logs; likely wrong JSON format or API style (400/404 from Azure). *404 on the v1 route*: set `FOUNDRY_API_STYLE=azure-deployments` and a GA `FOUNDRY_API_VERSION`, then record it in the ledger. *404 DeploymentNotFound*: `FOUNDRY_DEPLOYMENT` must equal the deployment **name**. *429*: quota (shared with the portal); the app retries after 2 s then fails; tell your backend developer, do not change the portal's deployment. *Timeout*: region latency; note it in the ledger.
+**If it fails:** *job `failed` with `errorCode` `AI_OUTPUT_INVALID`*: the model answered three times with unusable JSON; read the console logs for `ai_output_invalid` (reasons only, no content), try again, and tell your backend developer. *job `queued` again with "The AI service is temporarily unavailable"*: HTTP 4xx/5xx from Azure (check API style below); the engine retries up to 3 times (5 s, 10 s). *404 on the v1 route*: set `FOUNDRY_API_STYLE=azure-deployments` and a GA `FOUNDRY_API_VERSION`, then record it in the ledger. *404 DeploymentNotFound*: `FOUNDRY_DEPLOYMENT` must equal the deployment **name**. *429*: quota (shared with the portal); the provider waits 2 s and retries once, then the job is re-queued with the `Retry-After` delay (max 3 attempts); do not change the portal's deployment. *Timeout*: region latency; note it in the ledger.
 **Evidence:** job rows and the two KQL results.
 
-**Proceed when (go/no-go):** the generation job reaches `done` with `questionCount >= 1`, `jobs.tokens_used > 0`, Application Insights shows a dependency to the OpenAI host and a `job.completed` event, regenerate keeps the question's id and position, approve is refused with `409 SECTION_INCOMPLETE` until every section has exactly its configured count and then succeeds, and editing after approval returns `409`.
+**Proceed when (go/no-go):** the generation job reaches `done` with `result.questionsCreated >= 1`, `jobs.tokens_used > 0`, the console logs show `job_done` (and Application Insights shows a dependency to the OpenAI host), regenerate keeps the question's id and position, approve is refused with `409 SECTION_INCOMPLETE` until every section has exactly its configured count and then succeeds, and editing after approval returns `409`.
 **If this is not true, stop here. Do not start the next checkpoint.**
 
 

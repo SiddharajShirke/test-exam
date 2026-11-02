@@ -32,7 +32,7 @@
    - **Azure Cloud Shell** (via browser on the organization laptop) is the primary CLI execution environment.
    - **Azure Portal UI** (browser on organization laptop) is the secondary verification and inspection channel.
 3. **Workflow Separation:**
-   - **Development Laptop:** Application code, TypeScript/Node.js logic, Dockerfiles, unit/integration/contract tests (with fakes), GitHub workflows, scripts, and documentation.
+   - **Development Laptop:** Application code, Python/FastAPI logic, Dockerfiles, unit/integration/contract tests (with fakes), GitHub workflows, scripts, and documentation.
    - **Organization Laptop:** Cloud Shell command execution, resource inspection, service connection verification, role assignments, and production secret binding.
 4. **Credential Protection:**
    - No Azure passwords, client secrets, MFA codes, or connection strings shall ever be requested, stored, or committed to Git, local files, or logs.
@@ -46,7 +46,7 @@
 | **SQL Database & Server** | **West US** | Assessment SQL Server & Database | Chosen due to Azure SQL service tier availability restrictions in East US. Must not be migrated or duplicated without approval. |
 | **Application & Portal** | **East US** | Existing Assessment Portal App Service / Container App | Existing user-facing portal and runtime. |
 | **Telemetry & Logs** | **East US** | Log Analytics & Application Insights | Centralized diagnostic logging for application components. |
-| **AI Foundry / OpenAI** | **East US** | `assessment-portal-resource` (`services.ai.azure.com`) | GPT-4o model deployment endpoint for question generation and marking. |
+| **AI Foundry / OpenAI** | **East US** | `<AI_RESOURCE>` (`services.ai.azure.com`) | GPT-4o model deployment endpoint for question generation and marking. |
 | **Storage & Artifacts** | **East US** *(to verify)* | Storage Account (`jd-files` blob container) | Document and file storage. |
 | **Email Communication** | **East US / Global** *(to verify)* | Azure Communication Services | Managed email sending. |
 
@@ -74,3 +74,27 @@
 | n | Public repository | No real Azure names, ids, emails or secrets in the repo; plan uses placeholders |
 | o | Removed to save cost | Clean-slate rehearsal, stress test, real database restore, RG-wide lock, availability test (unless the plan approves it) |
 | p | Open question | Is the $25 ceiling for the new backend only, or the whole subscription? (answer after OC-0) |
+
+## 6. Technology stack (2026-11-02, supersedes any earlier Node/TypeScript wording)
+
+| # | Decision | Value |
+|---|---|---|
+| p | Backend language/framework | **Python 3.12 + FastAPI + Pydantic v2** (Node.js 0%) |
+| q | Data access | SQLAlchemy 2 Core + pyodbc (ODBC Driver 18); one repository implementation; `REPO_BACKEND=memory` runs on in-memory SQLite, `sql` on Azure SQL / SQL Server |
+| r | Tests and tooling | pytest, ruff, mypy; Postman collections generated from one Python spec |
+| s | Cloud | Azure only (SQL, Blob, AI Foundry GPT-4o, ACS email, Container Apps, Application Insights) |
+| t | Frontend (out of scope here) | Next.js / React, consumes the REST API |
+| u | LangChain | Not used in the MVP; add only if an agentic use case needs it (Phase 6+), behind the AI provider port |
+
+## 7. Phase 4-6 decisions (2026-11-02)
+
+| # | Decision | Value |
+|---|---|---|
+| v | Passwords and sessions | Argon2id (19 MiB, t=2, p=1); signed cookie `sid`, only its SHA-256 stored; idle 30 min, absolute 8 h; 5 failures in 10 min lock the account (429 + Retry-After) |
+| w | Emails | Globally unique (R1); identical 401 for unknown, wrong or disabled accounts |
+| x | JD upload | PDF (pypdf) or UTF-8 text, 2 MB, 20..20,000 characters of extracted text; blob `tenant/assessment/file` |
+| y | Approval rule (R5) | A section must hold exactly its configured number of questions |
+| z | Daily caps | 20 generations and `AI_DAILY_TOKEN_CAP` tokens per tenant per UTC day (429 `DAILY_AI_LIMIT`) |
+| aa | Marks | Objective questions default to 1 mark; descriptive 1-20 (default 10) |
+| ab | Job engine | In-process, DB-backed, 2 s tick, <= 3 concurrent, 3 attempts with 5 s x n back-off, stuck jobs recovered after 5 min, 20 s drain on shutdown |
+| ac | AI call shape | Batches of <= 5 questions, JSON mode, JD between delimiters and treated as data, 3 validation attempts |

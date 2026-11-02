@@ -10,7 +10,7 @@
 ## 1. Executive Summary & Existing Architecture
 
 The Assessment Portal project is an active, existing platform deployed across two Azure regions:
-- **East US:** Hosts the Assessment Portal application resources, centralized logs (Log Analytics & Application Insights), and the Azure AI Foundry resource (`assessment-portal-resource`).
+- **East US:** Hosts the Assessment Portal application resources, centralized logs (Log Analytics & Application Insights), and the Azure AI Foundry resource (`<AI_RESOURCE>`).
 - **West US:** Hosts the Assessment SQL Server and SQL Database, deployed there due to regional Azure SQL service tier and deployment availability constraints.
 
 This document provides:
@@ -32,7 +32,7 @@ This document provides:
 |---|---|---|---|---|
 | **SQL Server** | Existing | **West US** | `[PENDING VERIFICATION]` | Hosts the SQL Database. Preserved in West US. |
 | **SQL Database** | Existing | **West US** | `[PENDING VERIFICATION]` | Shared relational store (tenants, users, assessments, jobs). |
-| **AI Foundry (GPT-4o)** | Existing | **East US** | `assessment-portal-resource` | Question generation & descriptive answer evaluation. |
+| **AI Foundry (GPT-4o)** | Existing | **East US** | `<AI_RESOURCE>` | Question generation & descriptive answer evaluation. |
 | **Log Analytics & App Insights** | Existing | **East US** | `[PENDING VERIFICATION]` | Centralized telemetry, performance monitoring, audit log mirror. |
 | **Container Registry (ACR)** | New or Reuse | **East US** | `myassessacr` (or reuse existing) | Docker image storage for `assess-api`. |
 | **Container Apps Environment** | New or Reuse | **East US** | `assess-env` (or reuse existing) | Managed serverless container host. |
@@ -48,7 +48,7 @@ This document provides:
 
 #### Architectural Justification:
 1. **Frontend Colocation:** The user-facing Assessment Portal (`web` / frontend) is located in East US. Placing `assess-api` in East US ensures low intra-region latency (< 5 ms) for candidate exam sessions, autosaves, and cookie security (`sid`, `aid`).
-2. **AI Payload Bandwidth:** GPT-4o requests and responses pass between the API and `assessment-portal-resource` (East US). Keeping them intra-region reduces transfer time and eliminates cross-region data transfer charges on AI payloads.
+2. **AI Payload Bandwidth:** GPT-4o requests and responses pass between the API and `<AI_RESOURCE>` (East US). Keeping them intra-region reduces transfer time and eliminates cross-region data transfer charges on AI payloads.
 3. **Telemetry Colocation:** Application Insights and Log Analytics are in East US. Ingesting traces, metrics, and HTTP request logs stays within the same region (zero egress cost).
 4. **Database Query Latency Handling:**
    - Round-trip ping between East US and West US over Microsoft's private backbone is ~65 ms to 75 ms.
@@ -142,7 +142,7 @@ az resource list --location eastus --query "[].{Name:name, Type:type, ResourceGr
 az containerapp env list -o table
 az acr list --query "[].{Name:name, ResourceGroup:resourceGroup, Location:location, Sku:sku.name}" -o table
 
-# Verify AI Foundry deployment (assessment-portal-resource)
+# Verify AI Foundry deployment (<AI_RESOURCE>)
 az cognitiveservices account list --query "[?contains(name, 'assessment')].{Name:name, Location:location, Endpoint:properties.endpoint}" -o table
 ```
 
@@ -158,7 +158,7 @@ If Cloud Shell is restricted on your organization laptop, you can inspect these 
    - Under the SQL Server blade, click **Networking** → check if *"Allow Azure services and resources to access this server"* is checked.
 2. **AI Foundry / OpenAI (East US):**
    - Navigate to **Azure AI Services** or **Cognitive Services**.
-   - Confirm `assessment-portal-resource` exists in East US.
+   - Confirm `<AI_RESOURCE>` exists in East US.
    - Click **Model deployments** → confirm deployment `gpt-4o` is active.
 3. **Application & Monitoring (East US):**
    - Navigate to **Log Analytics workspaces** and **Application Insights** → note their names and resource groups.
@@ -176,7 +176,7 @@ Once you provide the names of the existing resources from the inspection above, 
 | **1.2** | **SQL Server Firewall** | Add `AllowAzureServices` rule to existing West US SQL Server | West US | Cloud Shell script |
 | **1.3** | **SQL App User** | Create least-privilege `assess_app` user (no admin password in apps) | West US | Script via Cloud Shell |
 | **1.4** | **Log Analytics & Insights** | Wire existing East US App Insights connection string | East US | Cloud Shell / Portal |
-| **1.5** | **AI Foundry (GPT-4o)** | Wire `assessment-portal-resource` deployment endpoint | East US | Cloud Shell / Portal |
+| **1.5** | **AI Foundry (GPT-4o)** | Wire `<AI_RESOURCE>` deployment endpoint | East US | Cloud Shell / Portal |
 | **1.6** | **Storage Account** | Verify/create standard LRS Storage Account + `jd-files` private container | East US | Cloud Shell script |
 | **1.7** | **Communication Services** | Provision ACS with Azure-managed domain | East US / US | Cloud Shell script |
 | **1.8** | **Container Registry & Apps** | Provision Basic ACR + Container Apps Environment + `assess-api` | East US | Cloud Shell script |

@@ -13,6 +13,7 @@ scripts=(
   "${REPO_ROOT}/infra/azure/50-email.sh"
   "${REPO_ROOT}/infra/azure/60-registry.sh"
   "${REPO_ROOT}/infra/azure/70-assess-api.sh"
+  "${REPO_ROOT}/infra/azure/80-assess-api-config.sh"
 )
 
 echo "# Phase 1 Dry-Run Provisioning Plan Output"

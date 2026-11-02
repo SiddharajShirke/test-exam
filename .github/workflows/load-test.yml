@@ -15,6 +15,9 @@ on:
         options:
           - target
 
+permissions:
+  contents: read
+
 jobs:
   load-test:
     name: Run k6 Load Test

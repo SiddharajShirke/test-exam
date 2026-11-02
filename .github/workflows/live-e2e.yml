@@ -4,56 +4,54 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: 'Base URL of the target Azure Container App (e.g. https://assess-api.<hash>.<region>.azurecontainerapps.io)'
+        description: 'Base URL of the deployed assess-api (https://<fqdn>)'
         required: true
         type: string
       upto_phase:
-        description: 'Maximum phase number to test up to (0-13)'
+        description: 'Highest phase number to check (0-13)'
         required: false
-        default: '13'
+        default: '6'
+        type: string
+      expected_version:
+        description: 'Commit SHA the server must report in x-app-version (optional)'
+        required: false
+        default: ''
         type: string
       with_ai:
-        description: 'Run tests requiring real AI Foundry GPT-4o'
+        description: 'Run checks that call the real AI deployment (phase 6 generation; a few GPT-4o calls)'
         required: false
         default: false
         type: boolean
       with_email:
-        description: 'Run tests requiring real Azure Communication Services email'
+        description: 'Run checks that send real email (ACS)'
         required: false
         default: false
         type: boolean
 
+permissions:
+  contents: read
+
 jobs:
   live-e2e:
-    name: Run Live Azure E2E
+    name: Run live E2E
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: 20
-
-      - name: Run E2E test runner
+          python-version: '3.12'
+      - run: pip install "httpx>=0.27,<1"
+      - name: Run E2E harness
         env:
-          E2E_TARGET: azure
-          E2E_BASE_URL: ${{ inputs.base_url }}
           E2E_PLATFORM_KEY: ${{ secrets.E2E_PLATFORM_KEY }}
           E2E_A_EMAIL: ${{ secrets.E2E_A_EMAIL }}
           E2E_A_PASSWORD: ${{ secrets.E2E_A_PASSWORD }}
           E2E_B_EMAIL: ${{ secrets.E2E_B_EMAIL }}
           E2E_B_PASSWORD: ${{ secrets.E2E_B_PASSWORD }}
-          E2E_MAILBOX: ${{ secrets.E2E_MAILBOX }}
-          E2E_CANDIDATE_TOKEN: ${{ secrets.E2E_CANDIDATE_TOKEN }}
-        run: |
-          if [ ! -f "scripts/e2e/run.mjs" ]; then
-            echo "E2E runner scripts/e2e/run.mjs will be populated in subsequent phases."
-            exit 0
-          fi
-          node scripts/e2e/run.mjs --target azure \
-            --base-url "${{ inputs.base_url }}" \
-            --upto "${{ inputs.upto_phase }}" \
-            --with-ai "${{ inputs.with_ai }}" \
-            --with-email "${{ inputs.with_email }}"
+        run: >
+          python scripts/e2e/run.py --target azure
+          --base-url "${{ inputs.base_url }}"
+          --upto "${{ inputs.upto_phase }}"
+          --expected-version "${{ inputs.expected_version }}"
+          --with-ai "${{ inputs.with_ai }}"
+          --with-email "${{ inputs.with_email }}"

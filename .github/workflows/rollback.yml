@@ -8,11 +8,17 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   rollback:
     name: Rollback assess-api
     runs-on: ubuntu-latest
     if: vars.AZURE_DEPLOY_ENABLED == 'true'
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

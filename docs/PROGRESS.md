@@ -1,10 +1,11 @@
 # Project Progress & Phase Tracking
 
-**Project:** AI Candidate Assessment Platform (MVP Backend)  
-**Specification:** `docs/prompts/PROMPT_A_MASTER.md` + `docs/prompts/PROMPT_B_ADDENDUM_OFFLINE_AZURE_READY.md`  
-**Guide:** `docs/OFFICE_CONNECTION_AND_TESTING_GUIDE.md`  
-**Current State:** Phase 2 Complete (Commit 697a45d on phase/02-database); Ready for Phase 3.  
-**Last Updated:** 2026-11-02  
+**Project:** AI Candidate Assessment Platform (MVP Backend)
+**Stack:** Python 3.12, FastAPI, Pydantic v2, SQLAlchemy Core + pyodbc, Azure (Node.js 0%)
+**Specification:** `docs/prompts/PROMPT_A_MASTER.md` + `docs/prompts/PROMPT_B_ADDENDUM_OFFLINE_AZURE_READY.md`
+**Guide:** `docs/OFFICE_CONNECTION_AND_TESTING_GUIDE.md`
+**Current State:** Phases 0-6 implemented in Python and tested locally. Branches are stacked: `feature/phase-3-testing-integration` -> `phase/04-auth` -> `phase/05-assessments` -> `phase/06-ai-generation`. Not yet pushed or run in GitHub Actions; nothing has been run against Azure. Phase 7 is next.
+**Last Updated:** 2026-11-02 (Phase 6)
 
 ---
 
@@ -12,36 +13,33 @@
 
 | Phase | Description | Status | Evidence / Notes |
 |---|---|---|---|
-| **Phase 0** | **Foundation** | **COMPLETED & VERIFIED** | [`docs/phase-reports/00-foundation.md`](phase-reports/00-foundation.md) — 53 tests passing (unit & contract), ESLint clean, typecheck clean, fakes implemented. |
-| **Phase 1** | **Azure Provisioning & Guide** | **STAGE 1 COMPLETED** | [`docs/phase-reports/01-azure-provisioning.md`](phase-reports/01-azure-provisioning.md) & [`docs/phase-reports/01-test-report.md`](phase-reports/01-test-report.md) — 75 tests passing, discovery scripts (read-only), provisioning scripts with sign-off gate, probe tool, `UNVERIFIED_AZURE_LEDGER.md`, GitHub Actions workflows, dry-run verified. Office execution pending sign-off. |
-| **Phase 2** | **Database & API Skeleton** | **COMPLETED & VERIFIED** | [`docs/phase-reports/02-database.md`](phase-reports/02-database.md) — 100 tests passing across 13 test files, schema `assess` (13 tables), dual repository pattern (memory & SQL), migration runner with `sp_getapplock`, `docs/data-model.md` ER diagram, static schema isolation tests. |
-| **Phase 3** | **Container & First Pipeline** | Pending | Dockerfile, GitHub Actions deploy workflow. |
-| **Phase 4** | **Auth, Tenants, Users** | Pending | Endpoints 1 to 7. |
-| **Phase 5** | **Assessments & JD (Blob)** | Pending | Endpoints 8 to 14. |
-| **Phase 6** | **Job Loop & AI Generation** | Pending | Endpoints 15 to 22. |
-| **Phase 7** | **Participants & Invitations (ACS)**| Pending | Endpoints 23 to 27. |
-| **Phase 8** | **Candidate Exam & Timer** | Pending | Endpoints 33 to 37. |
-| **Phase 9** | **Scoring & AI Marking** | Pending | Internal grading engine. |
-| **Phase 10** | **Results, Override, Export, Audit**| Pending | Endpoints 28 to 31. |
-| **Phase 11** | **Hardening & Resilience** | Pending | Limits, security, observability. |
-| **Phase 12** | **Complete CI/CD & Testing Gates** | Pending | Full PR/main workflow. |
-| **Phase 13** | **Release & Handover** | Pending | Acceptance & execution guide. |
+| **Phase 0** | Foundation | **DONE (T1 verified)** | `api/app/{config,main,middleware,core,providers,telemetry}`; 87 tests in `tests/phase0`. [`00-foundation.md`](phase-reports/00-foundation.md) describes the original Node build; the Python rewrite is in [`03-python-integration.md`](phase-reports/03-python-integration.md). |
+| **Phase 1** | Azure provisioning & guide | **Stage 1 DONE; office run pending sign-off** | Dry-run scripts + sign-off gate, probe (`python -m app.tools.probe`), container app YAML; 56 tests in `tests/phase1`. Nothing has been run against Azure. |
+| **Phase 2** | Database & repositories | **DONE (T1 verified; SQL path UNVERIFIED until CI)** | 12 tables in schema `assess`, tenant-scoped repos, 5 system queries, T-SQL migration + runner; 95 tests + 52 `sql`-marked tests that run in CI. |
+| **Phase 3** | Container & first pipeline + integration | **DONE locally; CI/container UNVERIFIED** | Dockerfile, `deploy.yml` (fast/container/security/deploy), live/nightly/rollback/load workflows, E2E harness, 3 Postman collections; 105 tests in `tests/phase3`. |
+| **Phase 4** | Auth, tenants, users | **DONE locally; SQL/Azure UNVERIFIED** | Endpoints 1-7: Argon2id, signed `sid` cookie, idle/absolute expiry, lockout, platform key, last-admin guard; [`04-auth.md`](phase-reports/04-auth.md). |
+| **Phase 5** | Assessments & JD (Blob) | **DONE locally; Blob/SQL UNVERIFIED** | Endpoints 8-14: CRUD, PDF/TXT upload with pypdf, per-route body limits; [`05-assessments.md`](phase-reports/05-assessments.md). |
+| **Phase 6** | Job loop & AI generation | **DONE locally; real GPT-4o, T-SQL claim UNVERIFIED** | Endpoints 15-22, job engine, Azure AI provider, review/approve; migration 0003; [`06-ai-generation.md`](phase-reports/06-ai-generation.md). Postman for phases 4-6 in `tests/phase6/postman`. |
+| Phase 7 | Participants & invitations (ACS) | Pending | Endpoints 23 to 27. |
+| Phase 8 | Candidate exam & timer | Pending | Endpoints 33 to 37. |
+| Phase 9 | Scoring & AI marking | Pending | Internal grading engine. |
+| Phase 10 | Results, override, export, audit | Pending | Endpoints 28 to 31. |
+| Phase 11 | Hardening & resilience | Pending | Limits, security, observability. |
+| Phase 12 | Complete CI/CD & testing gates | Pending | Full PR/main workflow. |
+| Phase 13 | Release & handover | Pending | Acceptance & execution guide. |
 
 ---
 
-## Latest Session Activity
+## Latest Session Activity (2026-11-02)
 
-- **Phase 2 Complete (Database & API Skeleton):**
-  - Designed and verified schema `0001_init.sql` containing all 13 tables strictly within dedicated schema `[assess]`.
-  - Implemented composite foreign keys, filtered unique index on `participants(token_hash)`, and JSON check constraints.
-  - Implemented migration runner `api/src/migrations/runner.ts` under session-scoped `sp_getapplock` (`assess-migrations`).
-  - Implemented database connection pool `api/src/db/pool.ts` with exponential backoff on transient errors and `withTransaction`.
-  - Implemented full repository abstraction layer (`api/src/repositories/types.ts`) with dual implementations (`MemoryRepositories` and `SqlRepositories`).
-  - Isolated cross-tenant queries into `api/src/repositories/system/index.ts` (`claimNextJob`, `findExpiredAttempts`, `findSessionByTokenHash`, `findParticipantByTokenHash`, `findAttemptByTokenHash`) with documented rationale.
-  - Enforced tenant boundary assertions via `assertTenant(tenantId)` across all tenant-owned entities.
-  - Completed API middleware stack: `requestIdMiddleware`, structured `accessLogMiddleware` with tenantId tracking, `helmet`, body parsers, and sanitized error boundary.
-  - Authored ER diagram and data architecture specifications in `docs/data-model.md`.
-  - Added items AZ-011, AZ-012, AZ-013 to `docs/UNVERIFIED_AZURE_LEDGER.md` and verified office guide alignment for checkpoint OC-2.
-  - Authored Phase 2 report `docs/phase-reports/02-database.md`.
-  - Verified 100/100 tests passing (`npm test`), ESLint clean (`npm run lint`), TypeScript build clean (`npm run build`).
+- Phases 4, 5 and 6 built in Python; every API test is parametrised over the in-memory and SQL Server backends (the SQL variants run only in CI).
+- CI: the `container` job now runs `pytest tests -m "sql or azurite"` and a full harness run through phase 6 against the built image (`tests/phase6/e2e/test_p6_e2e_container.py`). `live-e2e` defaults to phase 6.
+- Dockerfile: graceful-shutdown budget changed to 8 s + 20 s for running jobs (< 30 s Container Apps grace); a test pins it.
+- Ledger now AZ-001..AZ-030. See each phase report for what is verified and what is not.
+- Found and fixed by repeating full runs: a SQLite dispose race (interpreter crash) and a live-server fixture that stalled when its output pipe filled.
 
+## Next steps
+
+1. Push the branches in order (or one squashed branch), open PRs, confirm the `fast` and `container` CI jobs are green: they are the first proof of the SQL Server path, the migrations 0001-0003, the T-SQL job claim and the image.
+2. A human reviews `docs/PROVISIONING_PLAN.md` and writes the sign-off line; then office checkpoints OC-1A..H via Cloud Shell, then OC-2..OC-6.
+3. Start Phase 7 (participants and invitations) from `main` on `phase/07-participants`.
